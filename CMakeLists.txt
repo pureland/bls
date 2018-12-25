@@ -5,9 +5,29 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
-set(LIBS mcl gmp)
+# GMP
+find_path(GMP_INCLUDE_DIR NAMES gmp.h)
+find_library(GMP_LIBRARIES NAMES gmp libgmp)
+find_library(GMPXX_LIBRARIES NAMES gmpxx libgmpxx)
 
-include_directories(include/)
+message(" GMP_INCLUDE_DIR ${GMP_INCLUDE_DIR}")
+
+include_directories(include/ mcl/include/ )
+#include_directories(mcl/include/)
+include_directories(/usr/local/include/)
+
+find_package(OpenSSL REQUIRED)
+if(OPENSSL_FOUND)
+   message("OPEN SSL include directories:" ${OPENSSL_INCLUDE_DIR})
+endif()
+
+include_directories(${GMP_INCLUDE_DIRS})
+include_directories( ${OPENSSL_INCLUDE_DIR})
+
+add_subdirectory(mcl)
+
+set(LIBS ${GMP_LIBRARIES} ${GMPXX_LIBRARIES} ${OPENSSL_CRYPTO_LIBRARY} mcl )
+#message(${GMP_LIBRARIES} ${GMPXX_LIBRARIES})
 
 add_library(bls_c256 SHARED src/bls_c256.cpp)
 add_library(bls_c384 SHARED src/bls_c384.cpp)
