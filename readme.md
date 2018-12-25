@@ -10,9 +10,9 @@ Create a working directory (e.g., work) and clone the following repositories.
 ```
 mkdir work
 cd work
-git clone git://github.com/herumi/mcl.git
-git clone git://github.com/herumi/bls.git
-git clone git://github.com/herumi/cybozulib_ext ; for only Windows
+git https://github.com/pureland/bls.git
+git submodule update  --init --recursive
+#git clone git://github.com/herumi/cybozulib_ext ; for only Windows
 ```
 
 # News
