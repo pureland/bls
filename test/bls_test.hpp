@@ -5,6 +5,294 @@
 #include <sstream>
 #include <cybozu/benchmark.hpp>
 #include <cybozu/sha2.hpp>
+#include <map>
+#include <algorithm>
+#include <iterator>
+
+using namespace bls;
+using namespace std;
+struct Provider {
+    
+    struct Sub_sec{
+        Id recover_id;
+        bls::SecretKey sec;
+        PublicKey master_pub_key;
+        Sub_sec(){}
+        Sub_sec(Id _recover_id,bls::SecretKey _sec,PublicKey _master_pub_key):recover_id(_recover_id),sec(_sec),master_pub_key(_master_pub_key){}
+        
+        PublicKey get_sub_public_key()const{
+            PublicKey res;
+            sec.getPublicKey(res);
+            return res;
+        }
+    };
+    
+    struct Recover_sig{
+        
+        uint32_t master_no; //which sub key sign
+        Id recover_id;
+        Signature sig;
+        Recover_sig(){}
+        Recover_sig(Id _recover_id,bls::Signature _sig):recover_id(_recover_id),sig(_sig){}
+    };
+    
+    struct IdCmp{
+        bool operator()(const Id & id1,const Id & id2)const{
+            string str1,str2;
+            id1.getStr(str1);
+            id2.getStr(str2);
+            return str1<str2;
+        }
+    };
+    uint32_t owner_id;
+    uint8_t t;
+    uint8_t n;
+    bls::SecretKey own_sec;
+    bls::PublicKey own_pub;
+    map<uint32_t,Sub_sec> other_subs; // No.->Sub sec
+    map<uint32_t,Sub_sec> own_subs;   // No.->Sub sec
+    
+    //record pub(i,j)
+    
+    typedef map<Id,PublicKey,IdCmp> Id_PubKey_Map;
+    map<uint32_t,Id_PubKey_Map > sub_pubs;
+    
+    PublicKey get_sub_public_key(uint32_t i,Id id){
+        return sub_pubs[i][id];
+    }
+    
+    void set_sub_public_key(uint32_t No,Id id,PublicKey pub_key){
+        if(sub_pubs.count(No)==0){
+            Id_PubKey_Map tmp;
+            tmp[id]=pub_key;
+            sub_pubs[No]=tmp;
+        }
+        else
+            sub_pubs[No][id]=pub_key;
+    }
+    
+    map<uint32_t,vector<Recover_sig> > recover_sigs;
+    
+    bls::SecretKeyVec msk;
+
+    string current_message;
+    
+    Provider(){}
+    Provider(uint32_t id,uint8_t _t,uint8_t _n):owner_id(id),t(_t),n(_n){
+        own_sec.init();
+        own_sec.getPublicKey(own_pub);
+        own_sec.getMasterSecretKey(msk, t);
+
+        for (int i = 0; i < n; i++) {
+            int id = i + 1;
+            Sub_sec rd;
+            rd.sec.set(msk,id);
+            rd.recover_id=id;
+            rd.master_pub_key=own_pub;
+            own_subs[id]=rd;
+        }
+    }
+    
+    void set_message(string m){current_message=m;}
+    
+    void broad_cast_sec_to_others(Provider& pvder){
+        //if(pvder.owner_id==owner_id)
+        //    return;
+        pvder.set_other_sub(owner_id, own_subs[pvder.owner_id]);
+        //pvder.set_sub_public_key(owner_id, own_subs[pvder.owner_id].recover_id,own_subs[pvder.owner_id].get_sub_public_key());
+    }
+    
+    void broad_cast_sig_to_others(Provider* pvder,Recover_sig recover_sig){
+        if(pvder->owner_id==owner_id)
+            return;
+        pvder->set_other_sig(recover_sig);
+    }
+    bool verify_sub_sig(uint32_t from_id,Recover_sig recover_sig){
+        PublicKey pub=get_sub_public_key(from_id,recover_sig.recover_id);
+        //cout<<"provider "<<from_id<< " public key:\n"<<pub<<endl;
+        //cout<<"message:"<<current_message<<" sig:"<<recover_sig.sig<<endl;
+        return recover_sig.sig.verify(pub, current_message);
+    }
+    void set_other_sub(uint32_t id,Sub_sec recover_detail){
+        other_subs[id]=recover_detail;
+    }
+    
+    void set_other_sig(Recover_sig recover_sig){
+        uint32_t master_no=recover_sig.master_no;
+        auto ok=verify_sub_sig(master_no,recover_sig);
+        //cout<<"verify sub sig :"<<ok<<endl;
+        cout<<"set owner_id:"<<owner_id<<" id:"<<master_no<<" recover_id:"<<recover_sig.recover_id<<endl;
+        CYBOZU_TEST_ASSERT(ok);
+        if(recover_sigs.count(master_no)==0){
+            vector<Recover_sig> tmp;
+            recover_sigs[master_no]=tmp;
+        }
+        recover_sigs[master_no].push_back(recover_sig);
+    }
+    
+    bls::Signature recover(uint32_t id){
+        if(id==owner_id)
+            return bls::Signature() ;
+        CYBOZU_TEST_ASSERT(recover_sigs.count(id)==1);
+        vector<Recover_sig> sigs=recover_sigs[id];
+        CYBOZU_TEST_ASSERT(sigs.size()>=t);
+        bls::SignatureVec sigVecs(t);
+        bls::IdVec idVecs(t);
+        std::transform(sigs.begin(), sigs.end(),sigVecs.begin(),[&](Recover_sig & r_sig){return r_sig.sig;});
+        std::transform(sigs.begin(), sigs.end(),idVecs.begin(),[&](Recover_sig & r_sig){return r_sig.recover_id;});
+        
+        bls::Signature sig;
+        cout<<id<<endl;
+        sig.recover(sigVecs, idVecs);
+        return sig;
+    };
+    //sign using sub key of a provider
+    void sub_sgin(Recover_sig &sig,uint32_t No){
+        
+        CYBOZU_TEST_ASSERT(other_subs.count(No)!=0);
+        
+        auto sec=other_subs[No].sec;
+        sec.sign(sig.sig,current_message);
+        sig.recover_id=other_subs[No].recover_id;
+        sig.master_no=No;
+        PublicKey pub;
+        sec.getPublicKey(pub);
+        //cout<<"sign messeage :"<<current_message<<" using pub key :\n"<<pub<<endl;
+        
+    }
+    //sign using master key of this provider
+    void sgin(bls::Signature &sig,string m){
+        own_sec.sign(sig, m);
+    }
+    template <typename K,typename V>
+    void static map_to_vec(const map<K,V> &from ,vector<V> & to){
+        std::transform(from.begin(), from.end(),std::back_inserter(to),[&](std::pair<K, V> &kv){return kv.second;});
+    }
+};
+std::ostream& operator<<(std::ostream& os, const Provider& provider)
+{
+    os<<"Owner Id :"<<provider.owner_id<<endl;
+    os<<"Sec key:"<<provider.own_sec<<endl;
+    os<<"Pub key :\n"<<provider.own_pub<<endl;
+    
+    os<<"\nOwn subs :"<<endl;
+    
+    for(const auto &own_sub:provider.own_subs){
+        os<<own_sub.first<<": "<<"Recover Id: "<<own_sub.second.recover_id<<endl;
+        os<<"Master Pub key :\n"<<own_sub.second.master_pub_key<<endl;
+        os<<"Sub Pub key :\n"<<own_sub.second.get_sub_public_key()<<endl;
+        
+    }
+    
+    os<<"\nOther subs :"<<endl;
+    
+    os<<"Master key :\n"<<provider.other_subs.begin()->second.master_pub_key<<endl;
+    for(const auto &own_sub:provider.other_subs){
+        os<<own_sub.first<<": "<<"Recover Id: "<<own_sub.second.recover_id<<endl;
+        os<<"Sub key :\n"<<own_sub.second.get_sub_public_key()<<endl;
+        
+    }
+    
+    os<<"\nSub Pub keys :"<<endl;
+    
+    for(const auto &sub_pub:provider.sub_pubs){
+        os<<"from id :"<<sub_pub.first<<":"<<endl;
+        for(const auto & pub:sub_pub.second){
+            os<<"Recover id:"<<pub.first<<":"<<endl;
+            os<<pub.second<<endl;
+        }
+    }
+    return os;
+}
+void provider_test(){
+    const uint8_t n=3;
+    const uint8_t t=2;
+    
+    const string init_message="test";
+    map<uint32_t,Provider> providers;
+    
+    //step1.1 init Provider (init sec ,sub secs and related ids )
+    for(uint32_t i=1;i<=n;i++){
+        providers[i]=Provider(i,t,n);
+        providers[i].set_message(init_message);
+        cout<<providers[i].own_sec<<endl;
+    }
+    //step1.2 set imformation to other povider
+    for(uint32_t i=1;i<=n;i++){
+        for(uint32_t j=1;j<=n;j++)
+            providers[i].broad_cast_sec_to_others(providers[j]);
+    }
+    
+    //step1.3 set sub pub key to other povider
+    for(uint32_t i=1;i<=n;i++){
+        auto &to_sets=providers[i].other_subs;
+        for(uint32_t j=1;j<=n;j++){
+            for(const auto &to_set:to_sets){
+                //cout<<"set :"<<j <<" "<<to_set.first<<" "<<to_set.second.recover_id <<endl;
+                providers[j].set_sub_public_key(to_set.first, to_set.second.recover_id, to_set.second.get_sub_public_key());}
+        }
+        
+    }
+    /*for(const auto &provider:providers){
+        cout<<provider.second<<endl;
+        uint32_t i=10;
+    }*/
+    //cout<<providers[2]<<endl;
+    //step2  get public key of sub key
+    
+    
+    //recover private key test
+    
+    SecretKeyVec    secs;
+    IdVec           ids;
+    
+    uint32_t        test_no=1;
+    for(uint32_t i=1;i<=t;i++){
+        secs.push_back(providers[i].other_subs[test_no].sec);
+        ids.push_back(providers[i].other_subs[test_no].recover_id);
+    }
+    
+    SecretKey sk1;
+    sk1.recover(secs, ids);
+    
+    CYBOZU_TEST_EQUAL(sk1,providers[test_no].own_sec);
+    
+    
+    //step3 sig with sub key for message;and broadcast to others
+    for(uint32_t i=1;i<=n;i++)
+        for(uint32_t j=1 ;j<=n;j++){
+            Provider::Recover_sig sigs;
+            providers[i].sub_sgin(sigs,j);
+            for(uint32_t k=1 ;k<=n;k++)
+                providers[i].broad_cast_sig_to_others(&providers[k],sigs);
+    }
+    
+    //step4 verify sub sign
+    
+    //step5 recover sub sign
+    
+    Signature origin_sigs[n][n];
+    
+    for(uint32_t i=1;i<=n;i++){
+        for(uint32_t j=1;j<=n;j++){
+            origin_sigs[i][j]= providers[i].recover(j);
+        }
+    }
+    
+    //step6 verify public key
+    
+    //step6.1 check if all sign same
+    for(uint32_t i=1;i<=n;i++){
+        for(uint32_t j=1;j<=n;j++){
+            cout<<i<<j<<origin_sigs[i][j]<<endl;
+            /*if(i!=j)
+                CYBOZU_TEST_EQUAL(origin_sigs[i][0],origin_sigs[i][j]);
+             */
+            
+        }
+        
+    }
+}
 
 template<class T>
 void streamTest(const T& t)
@@ -106,7 +394,6 @@ void blsTest()
 		CYBOZU_BENCH_C("verify", 1000, sig.verify, pub, m);
 	}
 }
-
 void k_of_nTest()
 {
 	const std::string m = "abc";
@@ -276,7 +563,6 @@ void k_of_nTest()
 		CYBOZU_TEST_EQUAL(pub, pub2);
 	}
 }
-
 void popTest()
 {
 	const size_t k = 3;
@@ -463,13 +749,18 @@ void verifyAggregateTest()
 
 void testAll()
 {
-	blsTest();
-	k_of_nTest();
+    //blsTest();
+    provider_test();
+	
+
+	/*
+     k_of_nTest();
 	popTest();
 	addTest();
 	dataTest();
 	aggregateTest();
 	verifyAggregateTest();
+    */
 }
 CYBOZU_TEST_AUTO(all)
 {

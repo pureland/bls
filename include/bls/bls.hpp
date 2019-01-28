@@ -99,6 +99,10 @@ public:
 	{
 		return blsIdIsEqual(&self_, &rhs.self_) == 1;
 	}
+    bool operator<(const Id& rhs) const
+    {
+        return blsIdIsEqual(&self_, &rhs.self_) == 1;
+    }
 	bool operator!=(const Id& rhs) const { return !(*this == rhs); }
 	friend std::ostream& operator<<(std::ostream& os, const Id& id)
 	{
