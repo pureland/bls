@@ -1,5 +1,6 @@
 #define MCLBN_DONT_EXPORT
 #define BLS_DLL_EXPORT
+#define MCLBN_FP_UNIT_SIZE 4
 
 #include <bls/bls.h>
 
