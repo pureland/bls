@@ -294,6 +294,32 @@ void provider_test(){
     }
 }
 
+void public_adds_test(){
+    const uint32_t n=21;
+    const string message="test";
+    vector<SecretKey> secs;
+    vector<PublicKey> pubs;
+    vector<Signature> sigs;
+    for(uint32_t i=0;i<n;i++){
+        SecretKey sec;
+        PublicKey pub;
+        Signature sig;
+        sec.init();
+        //cout<<sec<<endl;
+        secs.push_back(sec);
+        sec.getPublicKey(pub);
+        pubs.push_back(pub);
+        sec.sign(sig,message);
+        sigs.push_back(sig);
+        if(i>=2){
+            pubs[0].add(pubs[i]);
+            sigs[0].add(sigs[i]);
+            bool ok=sigs[0].verify(pubs[0], message);
+            CYBOZU_TEST_ASSERT(sigs[0].verify(pubs[0], message));
+        }
+    }
+    
+}
 template<class T>
 void streamTest(const T& t)
 {
@@ -749,8 +775,9 @@ void verifyAggregateTest()
 
 void testAll()
 {
+    public_adds_test();
     //blsTest();
-    provider_test();
+    //provider_test();
 	
 
 	/*
