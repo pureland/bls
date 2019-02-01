@@ -6,6 +6,7 @@
 	@license modified new BSD license
 	http://opensource.org/licenses/BSD-3-Clause
 */
+#define MCLBN_FP_UNIT_SIZE 4
 #include <bls/bls.h>
 #include <stdexcept>
 #include <vector>

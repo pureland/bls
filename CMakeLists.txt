@@ -62,3 +62,6 @@ if(ADD_EXE_TEST)
     add_executable(bls_test test/bls_test.cpp)
     target_link_libraries(bls_test bls_c256)
 endif(ADD_EXE_TEST)
+
+add_executable(main test/main.cpp)
+target_link_libraries(main bls_c256)
