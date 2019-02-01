@@ -4,12 +4,13 @@ using namespace std;
 
 int main(int argc, char** argv) {
    
+   bls::init(0);
    bls::SecretKey sec;
    sec.init();
-   /*bls::PublicKey pub;
+   bls::PublicKey pub;
    sec.getPublicKey(pub);
    cout<<pub<<endl;
-    */
+   
    
    return 0;
 }
