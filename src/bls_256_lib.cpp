@@ -1,2 +1,2 @@
-#include "bls_256_lib.hpp"
+#include <bls/bls_256_lib.hpp>
 
