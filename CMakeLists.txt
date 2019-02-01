@@ -39,6 +39,7 @@ set(LIBS ${GMP_LIBRARIES} ${GMPXX_LIBRARIES} ${OPENSSL_CRYPTO_LIBRARY} mcl )
 
 add_library(bls_c256 SHARED src/bls_c256.cpp)
 target_link_libraries(bls_c256 ${LIBS})
+target_include_directories(bls_c256 PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include ${CMAKE_CURRENT_SOURCE_DIR}/mcl/include)
 
 set(h_path ${CMAKE_CURRENT_SOURCE_DIR}/include/bls )
 set(h_files ${h_path}/bls_256_lib.hpp ${h_path}/bls.hpp ${h_path}/bls.h)
