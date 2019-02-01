@@ -37,18 +37,13 @@ add_subdirectory(mcl)
 set(LIBS ${GMP_LIBRARIES} ${GMPXX_LIBRARIES} ${OPENSSL_CRYPTO_LIBRARY} mcl )
 #message(${GMP_LIBRARIES} ${GMPXX_LIBRARIES})
 
-add_library(bls_c256 SHARED src/bls_c256.cpp)
-target_include_directories(bls_c256 PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include ${CMAKE_CURRENT_SOURCE_DIR}/mcl/include)
+add_library(bls_256_lib SHARED src/bls_256_lib.cpp)
+target_include_directories(bls_256_lib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include ${CMAKE_CURRENT_SOURCE_DIR}/mcl/include)
 
-target_link_libraries(bls_c256 ${LIBS})
+target_link_libraries(bls_256_lib ${LIBS})
 
 
-file(GLOB BLS_HEADERS include/bls/bls.h include/bls/bls.hpp)
+file(GLOB BLS_HEADERS include/bls/bls_256_lib.hpp)
 
-install(TARGETS bls_c256 DESTINATION lib)
+install(TARGETS bls_256_lib DESTINATION lib)
 install(FILES ${BLS_HEADERS} DESTINATION include/bls)
-
-if(ADD_EXE_TEST)
-    add_executable(bls_c256_test test/bls_c256_test.cpp)
-    target_link_libraries(bls_c256_test bls_c256)
-endif(ADD_EXE_TEST)
