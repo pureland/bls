@@ -146,7 +146,7 @@ public:
 	{
 		mclBnFr_setLittleEndian(&self_.v, buf, bufSize);
 	}
-   std::vector<uint64_t> serialize(){
+   std::vector<uint64_t> serialize()const{
       return std::vector<uint64_t>(self_.v.d,self_.v.d+MCLBN_FR_UNIT_SIZE);
    }
    void set(std::vector<uint64_t>& v){
@@ -282,7 +282,7 @@ public:
 		int ret = blsSecretKeyRecover(&self_, &secVec->self_, &idVec->self_, n);
 		if (ret != 0) throw std::runtime_error("blsSecretKeyRecover:same id");
 	}
-   std::vector<uint64_t> serialize(){
+   std::vector<uint64_t> serialize() const{
       return std::vector<uint64_t>(self_.v.d,self_.v.d+MCLBN_FR_UNIT_SIZE);
    }
    void set(std::vector<uint64_t>& v){
@@ -384,7 +384,7 @@ public:
 		int ret = blsPublicKeyRecover(&self_, &pubVec->self_, &idVec->self_, n);
 		if (ret != 0) throw std::runtime_error("blsPublicKeyRecover");
 	}
-   std::vector<uint64_t> serialize(){
+   std::vector<uint64_t> serialize() const{
 #ifdef BLS_SWAP_G
       return std::vector<uint64_t>(self_.v.d,self_.v.d+MCLBN_FP_UNIT_SIZE * 3);
 #else
@@ -507,7 +507,7 @@ public:
 		if (ret != 0) throw std::runtime_error("blsSignatureRecover:same id");
 	}
    
-   std::vector<uint64_t> serialize(){
+   std::vector<uint64_t> serialize() const{
 #ifdef BLS_SWAP_G
       return std::vector<uint64_t>(self_.v.d,self_.v.d+MCLBN_FP_UNIT_SIZE * 3*2);
 #else
