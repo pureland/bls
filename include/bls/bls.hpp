@@ -146,6 +146,12 @@ public:
 	{
 		mclBnFr_setLittleEndian(&self_.v, buf, bufSize);
 	}
+   std::vector<uint64_t> serialize(){
+      return std::vector<uint64_t>(self_.v.d,self_.v.d+MCLBN_FR_UNIT_SIZE);
+   }
+   void set(std::vector<uint64_t>& v){
+      memcpy(self_.v.d,&v[0],v.size()*sizeof(uint64_t));
+   }
 };
 
 /*
@@ -276,6 +282,12 @@ public:
 		int ret = blsSecretKeyRecover(&self_, &secVec->self_, &idVec->self_, n);
 		if (ret != 0) throw std::runtime_error("blsSecretKeyRecover:same id");
 	}
+   std::vector<uint64_t> serialize(){
+      return std::vector<uint64_t>(self_.v.d,self_.v.d+MCLBN_FR_UNIT_SIZE);
+   }
+   void set(std::vector<uint64_t>& v){
+      memcpy(self_.v.d,&v[0],v.size()*sizeof(uint64_t));
+   }
 };
 
 /*
@@ -372,6 +384,16 @@ public:
 		int ret = blsPublicKeyRecover(&self_, &pubVec->self_, &idVec->self_, n);
 		if (ret != 0) throw std::runtime_error("blsPublicKeyRecover");
 	}
+   std::vector<uint64_t> serialize(){
+#ifdef BLS_SWAP_G
+      return std::vector<uint64_t>(self_.v.d,self_.v.d+MCLBN_FP_UNIT_SIZE * 3);
+#else
+      return std::vector<uint64_t>(self_.v.d,self_.v.d+MCLBN_FP_UNIT_SIZE * 3*2);
+#endif
+   }
+   void set(std::vector<uint64_t>& v){
+      memcpy(self_.v.d,&v[0],v.size()*sizeof(uint64_t));
+   }
 };
 
 /*
@@ -484,6 +506,18 @@ public:
 		int ret = blsSignatureRecover(&self_, &sigVec->self_, &idVec->self_, n);
 		if (ret != 0) throw std::runtime_error("blsSignatureRecover:same id");
 	}
+   
+   std::vector<uint64_t> serialize(){
+#ifdef BLS_SWAP_G
+      return std::vector<uint64_t>(self_.v.d,self_.v.d+MCLBN_FP_UNIT_SIZE * 3*2);
+#else
+      return std::vector<uint64_t>(self_.v.d,self_.v.d+MCLBN_FP_UNIT_SIZE * 3);
+#endif
+   }
+   
+   void set(std::vector<uint64_t>& v){
+      memcpy(self_.v.d,&v[0],v.size()*sizeof(uint64_t));
+   }
 };
 
 /*
