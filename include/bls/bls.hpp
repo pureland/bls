@@ -12,7 +12,9 @@
 #include <string>
 #include <iosfwd>
 #include <stdint.h>
+#include <mcl/bn.hpp>
 
+using namespace mcl::bn;
 namespace bls {
 
 // same value with IoMode of mcl/op.hpp
@@ -294,10 +296,11 @@ public:
 	sQ ; public key
 */
 class PublicKey {
-	blsPublicKey self_;
+
 	friend class SecretKey;
 	friend class Signature;
 public:
+   blsPublicKey self_;
 	bool operator==(const PublicKey& rhs) const
 	{
 		return blsPublicKeyIsEqual(&self_, &rhs.self_) == 1;
@@ -394,6 +397,16 @@ public:
    void set(std::vector<uint64_t>& v){
       memcpy(self_.v.d,&v[0],v.size()*sizeof(uint64_t));
    }
+   std::vector<char> serialize_char() const{
+      
+      char buf[1024];
+      auto n = blsPublicKeySerialize(buf, sizeof(buf), &self_);
+      return std::vector<char>(buf,buf+n);
+   }
+   void deserialize_char(std::vector<char> vchar) const{
+      
+   }
+   
 };
 
 /*
@@ -459,6 +472,29 @@ public:
 	{
 		return blsVerify(&self_, &pub.self_, m, size) == 1;
 	}
+   bool verifys(std::vector<blsPublicKey> &pub,const std::vector<std::string> strs){
+      blsPublicKey pub_sum=pub[0];
+      for(uint32_t i=1;i<pub.size();i++)
+         blsPublicKeyAdd(&pub_sum, &pub[i]);
+#ifdef BLS_SWAP_G
+      G2 Hm_sum ,Hm;
+      hashAndMapToG2(Hm_sum, strs[0].c_str(), strs[0].size());
+      for(uint32_t i=1;i<pub.size();i++){
+         hashAndMapToG2(Hm, strs[i].c_str(), strs[i].size());
+         Hm_sum += Hm;
+      }
+      return blsVerify_hm(&self_, &pub_sum, void(&Hm_sum))==1;
+#else
+      G1 Hm_sum;
+      G1 Hm;
+      hashAndMapToG1(Hm_sum, strs[0].c_str(), strs[0].size());
+      for(uint32_t i=1;i<pub.size();i++){
+         hashAndMapToG1(Hm, strs[i].c_str(), strs[i].size());
+         Hm_sum += Hm;
+      }
+      return blsVerify_hm(&self_, &pub_sum, &Hm_sum)==1;
+#endif
+   }
 	bool verify(const PublicKey& pub, const std::string& m) const
 	{
 		return verify(pub, m.c_str(), m.size());

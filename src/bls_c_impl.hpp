@@ -231,7 +231,39 @@ int blsVerify(const blsSignature *sig, const blsPublicKey *pub, const void *m, m
 	return isEqualTwoPairings(*cast(&sig->v), getQcoeff().data(), Hm, *cast(&pub->v));
 #endif
 }
+int blsVerify_hm(const blsSignature *sig, const blsPublicKey *pub,const void *Hm){
+#ifdef BLS_SWAP_G
+   G2* Hm_G2=(G2*)Hm;
+   return isEqualTwoPairings(*cast(&sig->v), *cast(&pub->v), *Hm_G2);
+#else
+   G1* Hm_G1=(G1*)Hm;
+   return isEqualTwoPairings(*cast(&sig->v), getQcoeff().data(), *Hm_G1, *cast(&pub->v));
+#endif
+}
 
+int blsVerifys(const blsSignature *sig, const blsPublicKey *pub,const void *m,mclSize size,int array_size){
+   blsPublicKey pub_sum=*pub;
+   for(uint32_t i=1;i<array_size;i++)
+      blsPublicKeyAdd(&pub_sum, pub+i);
+#ifdef BLS_SWAP_G
+   G2 Hm_sum ,Hm;
+   hashAndMapToG2(Hm_sum, m, size);
+   for(uint32_t i=1;i<array_size;i++){
+      hashAndMapToG2(Hm, m, size);
+      Hm_sum += Hm;
+      return isEqualTwoPairings(*cast(&sig->v), *cast(&pub_sum->v), Hm_sum);
+   }
+#else
+   G1 Hm_sum;
+   G1 Hm;
+   hashAndMapToG1(Hm_sum, m, size);
+   for(uint32_t i=1;i<array_size;i++){
+      hashAndMapToG1(Hm, m, size);
+      Hm_sum += Hm;
+      isEqualTwoPairings(*cast(&sig->v), getQcoeff().data(), Hm_sum, *cast(&pub_sum.v));
+   }
+#endif
+}
 mclSize blsIdSerialize(void *buf, mclSize maxBufSize, const blsId *id)
 {
 	return cast(&id->v)->serialize(buf, maxBufSize);
