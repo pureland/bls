@@ -154,6 +154,9 @@ public:
    void set(std::vector<uint64_t>& v){
       memcpy(self_.v.d,&v[0],v.size()*sizeof(uint64_t));
    }
+   friend bool operator < ( const Id& p1, const Id& p2 ) {
+      return memcmp( p1.self_.v.d, p2.self_.v.d, sizeof(p1.self_.v.d) ) < 0;
+   }
 };
 
 /*
@@ -290,6 +293,9 @@ public:
    void set(std::vector<uint64_t>& v){
       memcpy(self_.v.d,&v[0],v.size()*sizeof(uint64_t));
    }
+   friend bool operator < ( const SecretKey& p1, const SecretKey& p2 ) {
+      return memcmp( p1.self_.v.d, p2.self_.v.d, sizeof(p1.self_.v.d) ) < 0;
+   }
 };
 
 /*
@@ -406,7 +412,10 @@ public:
    void deserialize_char(std::vector<char> vchar) const{
       
    }
-   
+   friend bool operator < ( const PublicKey& p1, const PublicKey& p2 ) {
+      return memcmp( p1.self_.v.d, p2.self_.v.d, sizeof(p1.self_.v.d) ) < 0;
+   }
+
 };
 
 /*
@@ -523,10 +532,10 @@ public:
 	/*
 		recover sig from k sigVec
 	*/
-	void recover(const SignatureVec& sigVec, const IdVec& idVec)
+	int recover(const SignatureVec& sigVec, const IdVec& idVec)
 	{
 		if (sigVec.size() != idVec.size()) throw std::invalid_argument("Signature:recover");
-		recover(sigVec.data(), idVec.data(), idVec.size());
+		return recover(sigVec.data(), idVec.data(), idVec.size());
 	}
 	/*
 		add signature
@@ -537,10 +546,10 @@ public:
 	}
 
 	// the following methods are for C api
-	void recover(const Signature* sigVec, const Id *idVec, size_t n)
+	int recover(const Signature* sigVec, const Id *idVec, size_t n)
 	{
-		int ret = blsSignatureRecover(&self_, &sigVec->self_, &idVec->self_, n);
-		if (ret != 0) throw std::runtime_error("blsSignatureRecover:same id");
+		return   blsSignatureRecover(&self_, &sigVec->self_, &idVec->self_, n);
+		//if (ret != 0) throw std::runtime_error("blsSignatureRecover:same id");
 	}
    
    std::vector<uint64_t> serialize() const{
@@ -553,6 +562,9 @@ public:
    
    void set(std::vector<uint64_t>& v){
       memcpy(self_.v.d,&v[0],v.size()*sizeof(uint64_t));
+   }
+   friend bool operator < ( const Signature& p1, const Signature& p2 ) {
+      return memcmp( p1.self_.v.d, p2.self_.v.d, sizeof(p1.self_.v.d) ) < 0;
    }
 };
 
